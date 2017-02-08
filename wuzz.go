@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -19,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/benaiah/pretty-print/json"
 	"github.com/jroimartin/gocui"
 )
 
@@ -68,14 +68,15 @@ const MIN_WIDTH = 60
 const MIN_HEIGHT = 20
 
 type Request struct {
-	Url             string
-	Method          string
-	GetParams       string
-	Data            string
-	Headers         string
-	ResponseHeaders string
-	RawResponseBody []byte
-	ContentType     string
+	Url                   string
+	Method                string
+	GetParams             string
+	Data                  string
+	Headers               string
+	ResponseHeaders       string
+	RawResponseBody       []byte
+	ProcessedResponseBody []byte
+	ContentType           string
 }
 
 type App struct {
@@ -377,10 +378,28 @@ func (a *App) SubmitRequest(g *gocui.Gui, _ *gocui.View) error {
 		// pretty-print json
 		if strings.Contains(response.Header.Get("Content-Type"), "application/json") {
 			var prettyJSON bytes.Buffer
-			err := json.Indent(&prettyJSON, r.RawResponseBody, "", "  ")
+			var formattedJSON bytes.Buffer
+
+			// Get formatted and highlighted json
+			err := prettyPrintJson.Fprint(&prettyJSON, r.RawResponseBody, prettyPrintJson.DefaultSettings)
+
 			if err == nil {
-				r.RawResponseBody = prettyJSON.Bytes()
+				r.ProcessedResponseBody = prettyJSON.Bytes()
 			}
+
+			noHighlightSettings := prettyPrintJson.Settings{
+				Highlight:    false,
+				IndentAmount: 2,
+				Colors:       prettyPrintJson.DefaultColors,
+			}
+
+			err = prettyPrintJson.Fprint(&formattedJSON, r.RawResponseBody, noHighlightSettings)
+
+			if err == nil {
+				r.RawResponseBody = formattedJSON.Bytes()
+			}
+		} else {
+			r.ProcessedResponseBody = r.RawResponseBody
 		}
 
 		// add to history
@@ -441,7 +460,7 @@ func (a *App) PrintBody(g *gocui.Gui) {
 				vrb.Title += " [binary content]"
 				fmt.Fprint(vrb, hex.Dump(req.RawResponseBody))
 			} else {
-				vrb.Write(req.RawResponseBody)
+				vrb.Write(req.ProcessedResponseBody)
 			}
 			return nil
 		}
