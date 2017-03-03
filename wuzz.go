@@ -639,9 +639,9 @@ func showAutocomplete(completions []string, left, top, maxWidth, maxHeight int, 
 
 	newPos := viewPosition{
 		x0: position{0, left},
-		y0: position{0, top},
+		y0: position{0, top + 1},
 		x1: position{0, left + width + 1},
-		y1: position{0, top + height + 1},
+		y1: position{0, top + height + 2},
 	}
 
 	VIEW_POSITIONS[AUTOCOMPLETE_VIEW] = newPos
